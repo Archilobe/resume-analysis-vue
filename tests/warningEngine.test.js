@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { runWarnings, NAVY_DISTRICTS } from '@/utils/warningEngine'
 import { calcBmi, parseTimeToMonth, monthDiff, maskIdNumber, formatOrUnknown } from '@/utils/formatters'
 
@@ -233,5 +235,30 @@ describe('综合', () => {
       expect(w.description).toBeTypeOf('string')
       expect(Array.isArray(w.fieldMarks)).toBe(true)
     }
+  })
+})
+
+import { SEED_RESUMES } from '@/mock/data'
+import { createLookup } from '@/utils/directoryLookup'
+
+describe('mock seed 简历预警回归', () => {
+  it('三份 seed 预警数量符合预期（demo-1: 3条, demo-2: 8条, demo-3: 0条）', async () => {
+    const schoolText = readFileSync(join(__dirname, 'fixtures/院校名录-mini.md'), 'utf-8')
+    // seed 用真实名录数据：mock 数据里院校须用真实名录内院校（上海大学/南京大学）
+    // 这里直接读 public/data 真名录验证（若文件缺失则跳过）
+    let lookup
+    try {
+      const realSchool = readFileSync(join(__dirname, '../public/data/2026届院校名录.md'), 'utf-8')
+      const realMajor = readFileSync(join(__dirname, '../public/data/冷门专业名录.md'), 'utf-8')
+      lookup = await createLookup({ schoolText: realSchool, majorText: realMajor })
+    } catch {
+      lookup = await createLookup({ schoolText: schoolText, majorText: '| 序号 | 专业名称 | 类别 |\n|---|---|---|\n| 1 | 哲学 | 冷门 |' })
+    }
+    const r1 = await runWarnings(SEED_RESUMES[0], lookup)
+    const r2 = await runWarnings(SEED_RESUMES[1], lookup)
+    const r3 = await runWarnings(SEED_RESUMES[2], lookup)
+    expect(r1.map((w) => w.ruleNo).sort((a, b) => a - b)).toEqual([4, 6, 8])
+    expect(r2.map((w) => w.ruleNo).sort((a, b) => a - b)).toEqual([1, 2, 4, 5, 6, 8, 10, 11])
+    expect(r3).toEqual([])
   })
 })
