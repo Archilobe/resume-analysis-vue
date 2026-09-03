@@ -48,6 +48,10 @@ export default async function mockAdapter(config) {
     return json(config, { resumeId: id, fileName, size })
   }
 
+  if (path === '/resume/list' && method === 'get') {
+    return json(config, [...resumes.values()].sort(byParsedDesc).map(listSummary))
+  }
+
   const m = path.match(/^\/resume\/([^/]+)(\/progress)?$/)
   if (m) {
     const id = m[1]
@@ -70,9 +74,6 @@ export default async function mockAdapter(config) {
     return json(config, { ...structuredClone(r), warnings })
   }
 
-  if (path === '/resume/list' && method === 'get') {
-    return json(config, [...resumes.values()].sort(byParsedDesc).map(listSummary))
-  }
   const del = path.match(/^\/resume\/([^/]+)\/delete$/)
   if (del && method === 'post') {
     resumes.delete(del[1]); tasks.delete(del[1])
